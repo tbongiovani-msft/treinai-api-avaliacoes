@@ -155,11 +155,11 @@ public class AvaliacaoFunctions
     }
 
     /// <summary>
-    /// GET /api/alunos/{alunoId}/avaliacoes — Get all assessments for a student.
+    /// GET /api/avaliacoes/aluno/{alunoId} — Get all assessments for a student.
     /// </summary>
     [Function("GetAvaliacoesByAluno")]
     public async Task<HttpResponseData> GetAvaliacoesByAluno(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "alunos/{alunoId}/avaliacoes")] HttpRequestData req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "avaliacoes/aluno/{alunoId}")] HttpRequestData req,
         string alunoId)
     {
         if (_tenantContext.IsAluno && alunoId != _tenantContext.UserId)

@@ -23,6 +23,7 @@ var host = new HostBuilder()
 
         services.AddTreinAIShared(cosmosEndpoint, databaseName);
         services.AddRepository<Avaliacao>("avaliacoes");
+        services.AddRepository<Aluno>("alunos");
     })
     .Build();
 

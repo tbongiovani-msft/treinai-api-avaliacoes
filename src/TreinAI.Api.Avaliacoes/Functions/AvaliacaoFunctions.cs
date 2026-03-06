@@ -17,17 +17,27 @@ namespace TreinAI.Api.Avaliacoes.Functions;
 public class AvaliacaoFunctions
 {
     private readonly IRepository<Avaliacao> _repository;
+    private readonly IRepository<Aluno> _alunoRepo;
     private readonly TenantContext _tenantContext;
     private readonly ILogger<AvaliacaoFunctions> _logger;
 
     public AvaliacaoFunctions(
         IRepository<Avaliacao> repository,
+        IRepository<Aluno> alunoRepo,
         TenantContext tenantContext,
         ILogger<AvaliacaoFunctions> logger)
     {
         _repository = repository;
+        _alunoRepo = alunoRepo;
         _tenantContext = tenantContext;
         _logger = logger;
+    }
+
+    private async Task<string?> ResolveAlunoRecordIdAsync()
+    {
+        var alunos = await _alunoRepo.QueryAsync(
+            _tenantContext.TenantId, a => a.UserId == _tenantContext.UserId);
+        return alunos.FirstOrDefault()?.Id;
     }
 
     [Function("GetAvaliacoes")]
@@ -46,8 +56,10 @@ public class AvaliacaoFunctions
         }
         else if (_tenantContext.IsAluno)
         {
-            avaliacoes = await _repository.QueryAsync(
-                _tenantContext.TenantId, a => a.AlunoId == _tenantContext.UserId);
+            var alunoRecordId = await ResolveAlunoRecordIdAsync();
+            avaliacoes = alunoRecordId != null
+                ? await _repository.QueryAsync(_tenantContext.TenantId, a => a.AlunoId == alunoRecordId)
+                : Array.Empty<Avaliacao>();
         }
         else if (_tenantContext.IsProfessor)
         {
@@ -71,8 +83,12 @@ public class AvaliacaoFunctions
         if (avaliacao == null)
             throw new NotFoundException("Avaliacao", id);
 
-        if (_tenantContext.IsAluno && avaliacao.AlunoId != _tenantContext.UserId)
-            throw new ForbiddenException("Você só pode acessar suas próprias avaliações.");
+        if (_tenantContext.IsAluno)
+        {
+            var alunoRecordId = await ResolveAlunoRecordIdAsync();
+            if (avaliacao.AlunoId != alunoRecordId)
+                throw new ForbiddenException("Você só pode acessar suas próprias avaliações.");
+        }
 
         return await ValidationHelper.OkAsync(req, avaliacao);
     }
@@ -162,8 +178,12 @@ public class AvaliacaoFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "avaliacoes/aluno/{alunoId}")] HttpRequestData req,
         string alunoId)
     {
-        if (_tenantContext.IsAluno && alunoId != _tenantContext.UserId)
-            throw new ForbiddenException("Você só pode acessar suas próprias avaliações.");
+        if (_tenantContext.IsAluno)
+        {
+            var alunoRecordId = await ResolveAlunoRecordIdAsync();
+            if (alunoId != alunoRecordId)
+                throw new ForbiddenException("Você só pode acessar suas próprias avaliações.");
+        }
 
         var avaliacoes = await _repository.QueryAsync(
             _tenantContext.TenantId, a => a.AlunoId == alunoId);
